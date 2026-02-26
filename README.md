@@ -30,7 +30,7 @@ cd syndrome_decoding_problem/
 
 1. Generate Base Instances
 ```bash
-$ python3 syndrome_decoding_problem/syndrome_generate.py -h
+python3 syndrome_decoding_problem/syndrome_generate.py -h
 ```
 ```bash
 # Example: Generate instances for n from 10 to 150
@@ -44,7 +44,7 @@ done
 Use models.py to transform base instances into CNF or XNF formats.
 
 ```bash
-$ python3 models.py -h
+python3 models.py -h
 ```
 ```bash 
 # Generate CNF (Variant 2, CC encoding 3, PB encoding 5) 
@@ -96,7 +96,7 @@ python3 check_SDP_solution.py Challenges/seed_0/SD/SD_20_0 00000001010000000000
 ## Low-Weight Codeword Problem (LWCP)
 
 ```bash
-$ cd low_weight_codeword_problem/
+cd low_weight_codeword_problem/
 ```
 
 1. Generate Base Instances
@@ -141,7 +141,7 @@ python3 LW_WCNF_CPSAT.py -m CNF1 -f Challenges/seed_0/LW/LW_30_0
 ```
 
 ```bash
- $ python3 LW_WCNF_CPSAT.py -m CNF2 -d Challenges/seed_0/LW/
+python3 LW_WCNF_CPSAT.py -m CNF2 -d Challenges/seed_0/LW/
 ```
  
 4. Verify Solutions
