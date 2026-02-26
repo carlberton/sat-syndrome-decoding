@@ -24,6 +24,7 @@ pip install -r requirements.txt
 ```
 
 ## Syndrom Decoding Problem (SDP)
+
 ```bash
 cd syndrome_decoding_problem/
 ```
