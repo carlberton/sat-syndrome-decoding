@@ -23,7 +23,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Syndrom Decoding Problem (SDP)
+## Syndrome Decoding Problem
 
 ```bash
 cd syndrome_decoding_problem/
