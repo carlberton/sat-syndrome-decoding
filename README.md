@@ -1,4 +1,4 @@
-# SAT-Based Syndrome Decoding and Low-Weight Codeword Discovery
+# SAT-Based Syndrome Decoding and Low-Weight Codeword Problem
 
 This repository contains the source code, instance generators, and solvers associated with research on the hardness of decoding linear codes using SAT and CP techniques.
 
@@ -158,6 +158,8 @@ python3 check_LWCP_solution.py Challenges/seed_0/LW/LW_30_0 Challenges/seed_0/LW
 ```bash
 python3 check_LWCP_solution.py Challenges/seed_0/LW/LW_30_0 001010000001000000000010000000
 ```
+
+---
 
 ## References 
 ```bibtex
