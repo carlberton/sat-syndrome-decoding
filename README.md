@@ -77,8 +77,8 @@ python3 check_LWCP_solution.py <instance_file> <binary_string>
 
 ## References 
 
-* **Carl Berton, Sami Cherif, and Claire Delaplace.** *SAT-Based Syndrome Decoding and Low-Weight Codewords.* In 27th International Symposium on Formal Methods (FM 2026), Tokyo, Japan. [Paper](https://rdcu.be/ftU02)
-* **Carl Berton, Sami Cherif, and Claire Delaplace.** *Satisfiabilité pour le décodage par syndrome.* In Journées Francophones de Programmation par Contraintes (JFPC 2025), Dijon, France. [⟨hal-05208088⟩](https://hal.science/hal-05208088)
+* **Carl Berton, Sami Cherif, and Claire Delaplace.** [*SAT-Based Syndrome Decoding and Low-Weight Codewords.*](https://rdcu.be/ftU02) In 27th International Symposium on Formal Methods (FM 2026), Tokyo, Japan.
+* **Carl Berton, Sami Cherif, and Claire Delaplace.** [*Satisfiabilité pour le décodage par syndrome.*](https://hal.science/hal-05208088) In Journées Francophones de Programmation par Contraintes (JFPC 2025), Dijon, France. 
 
 
 
