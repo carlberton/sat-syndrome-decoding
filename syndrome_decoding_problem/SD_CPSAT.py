@@ -1,3 +1,4 @@
+import os
 import time
 import csv
 import argparse
@@ -13,9 +14,10 @@ def build_and_solve_CP1(n, w, H_transpose, s_transpose, timeout=10800):
         w (int): Maximum Hamming weight.
         H_transpose (list of str): The transposed parity-check matrix.
         s_transpose (str): The syndrome vector.
+        timeout (int): Time limit in seconds.
     
     Returns:
-        status_str (str): 'sat', 'unsat', or 'timeout'.
+        status_str (str): 'sat', 'unsat', 'unknown', or 'model_invalid'.
         res_time (str): Resolution time in seconds.
         solution (str or None): Binary solution string for e_j variables if satisfiable.
     """
@@ -26,7 +28,9 @@ def build_and_solve_CP1(n, w, H_transpose, s_transpose, timeout=10800):
     e_vars = [model.NewBoolVar(f"e_{j}") for j in range(1, n+1)]
     
     # Build sets V and K
-    V , K = build_var_sets(H_transpose, s_transpose, n, w)
+    V, K = build_var_sets(H_transpose, s_transpose, n, w)
+    if any(not K_i for K_i in K):
+        return "unsat", "0.00000", None
     
     # For each parity-check equation E_i:
     for i, V_i in enumerate(V):
@@ -66,11 +70,12 @@ def build_and_solve_CP1(n, w, H_transpose, s_transpose, timeout=10800):
 
     # Solve the model using CP-SAT
     solver = cp_model.CpSolver()
+    solver.parameters.num_search_workers = 1
     solver.parameters.max_time_in_seconds = timeout # default : 3-hour timeout
 
-    start = time.time()
+    start = time.perf_counter()
     status = solver.Solve(model)
-    res_time = time.time() - start
+    res_time = time.perf_counter() - start
     res_time = f"{res_time:.5f}"
 
     # Extract solution if feasible/optimal
@@ -79,8 +84,12 @@ def build_and_solve_CP1(n, w, H_transpose, s_transpose, timeout=10800):
         solution = [solver.Value(e_j) for e_j in e_vars]
         solution = ''.join(map(str, solution))
         status_str = 'sat'
+    elif status == cp_model.INFEASIBLE:
+        status_str = 'unsat'
+    elif status == cp_model.MODEL_INVALID:
+        status_str = 'model_invalid'
     else:
-        status_str = 'unsat' if status == cp_model.INFEASIBLE else 'timeout'
+        status_str = 'unknown'
 
     return status_str, res_time, solution
 
@@ -94,9 +103,10 @@ def build_and_solve_CP2(n, w, H_transpose, s_transpose, timeout=10800):
         w (int): Maximum Hamming weight.
         H_transpose (list of str): The transposed parity-check matrix.
         s_transpose (str): The syndrome vector.
+        timeout (int): Time limit in seconds.
     
     Returns:
-        status_str (str): 'sat', 'unsat', or 'timeout'.
+        status_str (str): 'sat', 'unsat', 'unknown', or 'model_invalid'.
         res_time (str): Resolution time in seconds.
         solution (str or None): Binary solution string for e_j variables if satisfiable.
     """
@@ -107,7 +117,9 @@ def build_and_solve_CP2(n, w, H_transpose, s_transpose, timeout=10800):
     e_vars = [model.NewBoolVar(f"e_{j}") for j in range(1, n+1)]
     
     # Build sets V and K
-    V , K = build_var_sets(H_transpose, s_transpose, n, w)
+    V, K = build_var_sets(H_transpose, s_transpose, n, w)
+    if any(not K_i for K_i in K):
+        return "unsat", "0.00000", None
     
     # For each parity-check equation E_i:
     for i, V_i in enumerate(V):
@@ -139,7 +151,7 @@ def build_and_solve_CP2(n, w, H_transpose, s_transpose, timeout=10800):
         # Enforce the constraint: sum(e_j) + sum(2 * xbar_{i,v}) == max(K[i])
         model.Add(sum(terms) == rhs)
         
-        # Unary constraint: x_{i,v} = 1 if sum(e_j for j in V_{E_i}) <= v
+        # Unary ordering: x_{i,v} implies x_{i,v-2}.
         for v in K[i]:
             if v not in {0,1,2,3} and (v-2) in x_vars:
                 model.AddBoolOr([xbar_vars[v], x_vars[v-2]])
@@ -149,11 +161,12 @@ def build_and_solve_CP2(n, w, H_transpose, s_transpose, timeout=10800):
     
     # Solve the model using CP-SAT
     solver = cp_model.CpSolver()
+    solver.parameters.num_search_workers = 1
     solver.parameters.max_time_in_seconds = timeout # default : 3-hour timeout
 
-    start = time.time()
+    start = time.perf_counter()
     status = solver.Solve(model)
-    res_time = time.time() - start
+    res_time = time.perf_counter() - start
     res_time = f"{res_time:.5f}"
 
     # Extract solution if feasible/optimal
@@ -162,25 +175,30 @@ def build_and_solve_CP2(n, w, H_transpose, s_transpose, timeout=10800):
         solution = [solver.Value(e_j) for e_j in e_vars]
         solution = ''.join(map(str, solution))
         status_str = 'sat'
+    elif status == cp_model.INFEASIBLE:
+        status_str = 'unsat'
+    elif status == cp_model.MODEL_INVALID:
+        status_str = 'model_invalid'
     else:
-        status_str = 'unsat' if status == cp_model.INFEASIBLE else 'timeout'
+        status_str = 'unknown'
 
     return status_str, res_time, solution
 
 
 
-def process_file(file_path, solve_function):
+def process_file(file_path, solve_function, timeout=10800):
     """
     Process a single input file and solve the syndrome decoding problem.
 
     Args:
         file_path (str): Path to the input file containing problem parameters.
         solve_function (function): Function to solve the problem (build_and_solve_CP1 or build_and_solve_CP2).
+        timeout (int): Time limit in seconds.
     
     Returns:
         tuple: A tuple containing:
             - file (str): The name of the input file.
-            - status (str): 'sat', 'unsat', or 'timeout'.
+            - status (str): 'sat', 'unsat', 'unknown', 'model_invalid', or 'invalid_solution'.
             - res_time (str): Resolution time in seconds.
             - sol (str or None): Binary solution string for e_j variables if satisfiable, or an error message.
     """
@@ -189,7 +207,7 @@ def process_file(file_path, solve_function):
     n, _, w, H_transpose, s_transpose = parse_input_file(file_path)
     
     # Solve the problem using the specified solving function 
-    status, res_time, sol = solve_function(n, w, H_transpose, s_transpose)
+    status, res_time, sol = solve_function(n, w, H_transpose, s_transpose, timeout=timeout)
     file = os.path.basename(file_path)
 
     # If the solution is satisfiable, verify its validity
@@ -198,7 +216,7 @@ def process_file(file_path, solve_function):
         if is_valid: 
             return file, status, res_time, sol
         else:
-            return file, status, res_time, "Invqlid solution"
+            return file, 'invalid_solution', res_time, sol
     else:
         return file, status, res_time, "No solution"
 
@@ -211,14 +229,18 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-f', '--file', help='Path to an input file')
     group.add_argument('-d', '--dir', help='Path to a directory to process')
+    parser.add_argument("--timeout", type=int, default=10800,
+                        help="Time limit per instance in seconds (default: 10800)")
     args = parser.parse_args()
+    if args.timeout <= 0:
+        parser.error("--timeout must be strictly positive")
 
     # Select the solving function based on the chosen method
     solve_function = build_and_solve_CP1 if args.method == 'CNF1' else build_and_solve_CP2
 
     if args.file:
         # Process a single file
-        file, status, res_time, sol = process_file(args.file, solve_function)
+        file, status, res_time, sol = process_file(args.file, solve_function, args.timeout)
         directory = os.path.dirname(args.file)
         csv_filepath = os.path.join(directory, f"CPSAT_{args.method}_{os.path.splitext(file)[0]}.csv")
         with open(csv_filepath, mode='w', newline='') as csvfile:
@@ -246,7 +268,7 @@ def main():
             for entry in entries:
                 path = os.path.join(args.dir, entry)
                 print(f"\n--- Processing {path} ---")
-                file, status, res_time, sol = process_file(path, solve_function)
+                file, status, res_time, sol = process_file(path, solve_function, args.timeout)
                 csv_writer.writerow([file, status, res_time, sol])
                 csvfile.flush()
 

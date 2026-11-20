@@ -1,8 +1,6 @@
 import os
 import argparse
 import sys
-from SD_CNF import build_CNF1, build_CNF2
-from SD_XNF import build_XNF1, build_XNF2
 from utils import parse_input_file, write_cnf_to_file, process_matrix_and_write_to_file
 
 def log(msg, level="INFO"):
@@ -12,12 +10,12 @@ def log(msg, level="INFO"):
 def parse_args():
     """Defines and parses command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Generate Syndrome Decoding (SD) instances in CNF or XNF format."
+        description="Generate Syndrome Decoding (SD) instances in CNF, XNF or OPB format."
     )
     # Required arguments
     parser.add_argument("input_file", help="Path to the input instance file")
-    parser.add_argument("-f", "--format", choices=["CNF1", "CNF2", "XNF1", "XNF2"], required=True,
-                        help="Output format and variant (e.g., CNF1, XNF2)")
+    parser.add_argument("-f", "--format", choices=["CNF1", "CNF2", "XNF1", "XNF2", "PB1", "PB2"], required=True,
+                        help="Output format and variant (e.g., CNF1, XNF2, PB1)")
     
     # Parameter options
     parser.add_argument("--cc", type=int, default=3, 
@@ -46,8 +44,18 @@ def main():
         log(f"Overriding weight: w={w} -> w={args.w_override}")
         w = args.w_override
 
-    # Handle CNF Formats 
-    if args.format.startswith("CNF"):
+    # Native pseudo-Boolean formats (no CNF translation).
+    if args.format in ("PB1", "PB2"):
+        from SD_PB import build_PB1, build_PB2, write_opb_to_file
+        variant = int(args.format[-1])
+        builder = build_PB1 if variant == 1 else build_PB2
+        nb_vars, constraints = builder(n, w, H_transpose, s_transpose)
+        output = write_opb_to_file(args.input_file, seed, variant, nb_vars, constraints)
+        log(f"PB{variant} model generated at: {output}")
+
+    # Handle CNF Formats
+    elif args.format.startswith("CNF"):
+        from SD_CNF import build_CNF1, build_CNF2
         if args.pb is None:
             log("Pseudo-Boolean encoding (--pb) is required for CNF models.", "ERROR")
             sys.exit(1)
@@ -66,6 +74,7 @@ def main():
 
     # Handle XNF Formats
     elif args.format.startswith("XNF"):
+        from SD_XNF import build_XNF1, build_XNF2
         variant = args.format[-1]
         log(f"Building XNF Variant {variant} for seed {seed}...")
 

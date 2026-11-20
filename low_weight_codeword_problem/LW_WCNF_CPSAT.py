@@ -1,10 +1,11 @@
+import os
 import argparse
 import csv
 import time
 from ortools.sat.python import cp_model
 from utils import *
 
-def build_and_solve_CP1(n, H_transpose):
+def build_and_solve_CP1(n, H_transpose, timeout=10800):
     model = cp_model.CpModel()
     
     # Variables e_j 
@@ -57,24 +58,29 @@ def build_and_solve_CP1(n, H_transpose):
 
     # Resolution
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 10800
+    solver.parameters.num_search_workers = 1
+    solver.parameters.max_time_in_seconds = timeout
 
-    start = time.time()
+    start = time.perf_counter()
     status = solver.Solve(model)
-    res_time = time.time() - start
+    res_time = time.perf_counter() - start
     res_time = f"{res_time:.5f}"
 
     solution = None
     if status in (cp_model.FEASIBLE, cp_model.OPTIMAL):
         solution = [solver.Value(e_j) for e_j in e_vars]
         solution = ''.join(map(str, solution))
-        status_str = 'sat'
+        status_str = 'optimal' if status == cp_model.OPTIMAL else 'feasible'
+    elif status == cp_model.INFEASIBLE:
+        status_str = 'unsat'
+    elif status == cp_model.MODEL_INVALID:
+        status_str = 'model_invalid'
     else:
-        status_str = 'unsat' if status == cp_model.INFEASIBLE else 'timeout'
+        status_str = 'unknown'
 
     return status_str, res_time, solution
 
-def build_and_solve_CP2(n, H_transpose):
+def build_and_solve_CP2(n, H_transpose, timeout=10800):
     model = cp_model.CpModel()
     
     e_vars = [model.NewBoolVar(f"e_{j}") for j in range(1, n+1)]
@@ -125,37 +131,42 @@ def build_and_solve_CP2(n, H_transpose):
     
     # Resolution
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 10800
+    solver.parameters.num_search_workers = 1
+    solver.parameters.max_time_in_seconds = timeout
 
-    start = time.time()
+    start = time.perf_counter()
     status = solver.Solve(model)
-    res_time = time.time() - start
+    res_time = time.perf_counter() - start
     res_time = f"{res_time:.5f}"
 
     solution = None
     if status in (cp_model.FEASIBLE, cp_model.OPTIMAL):
         solution = [solver.Value(e_j) for e_j in e_vars]
         solution = ''.join(map(str, solution))
-        status_str = 'sat'
+        status_str = 'optimal' if status == cp_model.OPTIMAL else 'feasible'
+    elif status == cp_model.INFEASIBLE:
+        status_str = 'unsat'
+    elif status == cp_model.MODEL_INVALID:
+        status_str = 'model_invalid'
     else:
-        status_str = 'unsat' if status == cp_model.INFEASIBLE else 'timeout'
+        status_str = 'unknown'
 
     return status_str, res_time, solution
 
 
-def process_file(file_path, solve_function):
+def process_file(file_path, solve_function, timeout=10800):
     n, seed, H_transpose = parse_input_file(file_path)
     
     # Solve the problem with CP-SAT
-    status, res_time, sol = solve_function(n, H_transpose)
+    status, res_time, sol = solve_function(n, H_transpose, timeout=timeout)
     file = os.path.basename(file_path)
 
-    if status == 'sat' and sol is not None:
-        is_valid = verify_sol(file_path, sol)
+    if status in ('optimal', 'feasible') and sol is not None:
+        is_valid = ("1" in sol) and verify_sol(file_path, sol)
         if is_valid: 
             return file, status, res_time, sol
         else:
-            return file, status, res_time, "Invalid solution"
+            return file, 'invalid_solution', res_time, sol
     else:
         return file, status, res_time, "No solution"
     
@@ -165,14 +176,18 @@ def main():
     parser.add_argument('-m', '--method', choices=['CNF1', 'CNF2'], required=True, help="Resolution method to use (CNF1 or CNF2)")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-f', '--file', help='Path to an input file')
-    group.add_argument('-d', '--dir', help='Path to a file to be processed')
+    group.add_argument('-d', '--dir', help='Path to a directory to process')
+    parser.add_argument("--timeout", type=int, default=10800,
+                        help="Time limit per instance in seconds (default: 10800)")
     args = parser.parse_args()
+    if args.timeout <= 0:
+        parser.error("--timeout must be strictly positive")
 
     # Select the solving function based on the chosen method
     solve_function = build_and_solve_CP1 if args.method == 'CNF1' else build_and_solve_CP2
 
     if args.file:
-        file, status, res_time, sol = process_file(args.file,solve_function)
+        file, status, res_time, sol = process_file(args.file, solve_function, args.timeout)
         directory = os.path.dirname(args.file)
         csv_filepath = os.path.join(directory, f"CPSAT_W{args.method}_{os.path.splitext(file)[0]}.csv")
         with open(csv_filepath, mode='w', newline='') as csvfile:
@@ -197,7 +212,7 @@ def main():
             for entry in entries:
                 path = os.path.join(args.dir, entry)
                 print(f"\n--- Traitement de {path} ---")
-                file, status, res_time, sol = process_file(path,solve_function)
+                file, status, res_time, sol = process_file(path, solve_function, args.timeout)
                 csv_writer.writerow([file, status, res_time, sol])
                 csvfile.flush()
 

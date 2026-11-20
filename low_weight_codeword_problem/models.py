@@ -1,8 +1,6 @@
 import os
 import argparse
 import sys
-from LW_WCNF import build_WCNF1, build_WCNF2
-from LW_WXNF import build_WXNF
 from utils import parse_input_file, write_wcnf_to_file, process_matrix_and_write_to_file
 
 def log(msg, level="INFO"):
@@ -10,11 +8,11 @@ def log(msg, level="INFO"):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Generate Low-Weight Codeword (LWC) instances in WCNF or WXNF format."
+        description="Generate Low-Weight Codeword (LWC) instances in WCNF, WXNF or OPB format."
     )
     parser.add_argument("input_file", help="Path to the input challenge file")
-    parser.add_argument("-f", "--format", choices=["WCNF1", "WCNF2", "WXNF"], required=True,
-                        help="Output format: WCNF (MaxSAT) or WXNF (XOR-extended)")
+    parser.add_argument("-f", "--format", choices=["WCNF1", "WCNF2", "WXNF", "PB1", "PB2"], required=True,
+                        help="Output format: WCNF (MaxSAT) WXNF (XOR-extended), or PB1/PB2 (OPB)")
     parser.add_argument("--cc", type=int, default=3, 
                         help="Cardinality encoding (for PySAT CardEnc). Default: 3")
     parser.add_argument("--pb", type=int, default=5, 
@@ -34,17 +32,28 @@ def main():
     n, seed, H_transpose = parse_input_file(args.input_file)
 
     # Generation based on selected format
-    if args.format == "WCNF1":
+    if args.format in ("PB1", "PB2"):
+        from LW_PB import build_PB1, build_PB2, write_opb_to_file
+        variant = int(args.format[-1])
+        builder = build_PB1 if variant == 1 else build_PB2
+        nb_vars, constraints, objective = builder(n, H_transpose)
+        output = write_opb_to_file(args.input_file, seed, variant, nb_vars, constraints, objective)
+        log(f"PB{variant} model generated at: {output}")
+
+    elif args.format == "WCNF1":
+        from LW_WCNF import build_WCNF1
         log("Building WCNF Variant 1...")
         cnf = build_WCNF1(n, H_transpose, cc_encoding=args.cc, pb_encoding=args.pb)
         write_wcnf_to_file(args.input_file, args.pb, cnf, seed, variant="1")
 
     elif args.format == "WCNF2":
+        from LW_WCNF import build_WCNF2
         log("Building WCNF Variant 2...")
         cnf = build_WCNF2(n, H_transpose, pb_encoding=args.pb)
         write_wcnf_to_file(args.input_file, args.pb, cnf, seed, variant="2")
 
     elif args.format == "WXNF":
+        from LW_WXNF import build_WXNF
         log(f"Generating WXNF for seed {seed}...")
         
         # Prepare filenames and directories
