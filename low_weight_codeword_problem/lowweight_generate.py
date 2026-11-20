@@ -17,6 +17,9 @@ def usage():
 
     
 def main(n, seed):
+    if n < 2 or n % 2 != 0:
+        raise ValueError("n must be a positive even integer.")
+    
     random.seed(seed)
     text = ""
     text += "# n\n"

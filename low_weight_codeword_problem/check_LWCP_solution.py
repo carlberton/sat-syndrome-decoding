@@ -43,6 +43,13 @@ def verify_solution(candidate, H_transpose, n):
     # Candidate length verification
     if len(candidate) != n:
         raise ValueError(f"The candidate vector must be of length {n}, but it is of length {len(candidate)}.")
+    
+    if not all(c in "01" for c in candidate):
+        return False, None
+
+    if candidate.count("1") == 0:
+        print("Failure: the candidate solution is the zero codeword.")
+        return False, None
 
     syndrome = ""
     # For each column, we calculate the dot product

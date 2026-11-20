@@ -16,6 +16,9 @@ def usage():
     eprint("The instance will be saved in 'Challenges/seed_${seed}/SD/SD_n_seed'.")
 
 def dGV(n, k):
+    if n < 2 or n % 2 != 0:
+        raise ValueError("n must be a positive even integer.")
+    
     d = 0
     aux = 2**(n-k)
     b = 1

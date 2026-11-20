@@ -20,16 +20,19 @@ def build_WXNF(n, anf_filename, xnf_filename):
 
     nb_vars = top_id  # Total number of variables including 'T'
 
+    soft_weight = 1
+    hard_weight = n * soft_weight + 1
+
     cnf_clauses = []
 
-    # Soft clauses : 5 -e_j 0
+    # Soft clauses
     for j in range(1, n+1):
-        var_id = e_vars[j-1]     
-        cnf_clauses.append(f"5 -{var_id} 0")
+        var_id = e_vars[j-1]
+        cnf_clauses.append(f"{soft_weight} -{var_id} 0")
 
-    # Hard clause : 10 e_1 e_2 ... e_n 0
+    # Hard clause: the codeword must be non-zero
     hard_clause = " ".join(str(e_vars[j]) for j in range(n))
-    cnf_clauses.append(f"10 {hard_clause} 0")
+    cnf_clauses.append(f"{hard_weight} {hard_clause} 0")
 
     # Skip ANF header, remove the initial 'x' and replace 'T' with top_id
     anf_content = []
@@ -46,16 +49,16 @@ def build_WXNF(n, anf_filename, xnf_filename):
 
         if len(vars_effectives) == 1:
             a = vars_effectives[0]
-            # Generate the CNF clause for a single variable (equivalent to e_a = T)
-            cnf_clauses.append(f"10 -{a} 0")
+            # Generate the CNF clause for a single variable
+            cnf_clauses.append(f"{hard_weight} -{a} 0")
         elif len(vars_effectives) == 2:
             a, b = vars_effectives
             # Generate CNF clauses for 2-variable XOR
-            cnf_clauses.append(f"10 {a} -{b} 0")
-            cnf_clauses.append(f"10 -{a} {b} 0")
+            cnf_clauses.append(f"{hard_weight} {a} -{b} 0")
+            cnf_clauses.append(f"{hard_weight} -{a} {b} 0")
         else:
-            # Keep the line as is for GaussMaxHS
-            anf_content.append(f"x 10 {clean_line}")
+            # Keep the XOR clause for GaussMaxHS
+            anf_content.append(f"x {hard_weight} {clean_line}")
 
 
     # Total number of clauses = ANF lines (without header) + CNF clauses
@@ -64,13 +67,13 @@ def build_WXNF(n, anf_filename, xnf_filename):
     # Write the final XNF file
     with open(xnf_filename, 'w') as xnf_file:
         # Write XNF header: p cnf <num_vars> <num_clauses>  10
-        xnf_file.write(f"p wcnf {nb_vars} {nb_lines + 1} 10\n")
+        xnf_file.write(f"p wcnf {nb_vars} {nb_lines + 1} {hard_weight}\n")
 
         for clause in cnf_clauses:
             xnf_file.write(clause + "\n")
 
         # Explicitly write the clause for top_id
-        xnf_file.write(f"10 {top_id} 0\n")
+        xnf_file.write(f"{hard_weight} {top_id} 0\n")
 
         # Write ANF lines without header
         xnf_file.writelines(anf_content)
